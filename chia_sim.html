@@ -77,11 +77,15 @@
     <table>
         <tr>
             <th></th>
-            <th>ずっとソロ</th>
-            <th>ずっとメインpool</th>
-            <th>ずっとサブpool</th>
-            <th>メインとサブ往復(移動時間なし)</th>
-            <th>メインとサブ往復(移動時間あり)</th>
+            <th class="result">ずっとソロ</th>
+            <th class="result">ずっとメインpool</th>
+            <th class="result">ずっとサブpool</th>
+            <th class="result">
+                メインとサブ往復<div>(移動時間なし)</div>
+            </th>
+            <th class="result">
+                メインとサブ往復<div>(移動時間あり)</div>
+            </th>
         </tr>
         <tr>
             <th>自力当選数</th>
@@ -164,6 +168,8 @@
         border: 1px;
         border-style: solid;
         border-collapse: collapse;
+        width: 100%;
+        table-layout: fixed;
     }
 
     table {
@@ -341,29 +347,29 @@
 
     function whiteResult() {
         console.log(farmers)
-        document.getElementById("my_win0").textContent = `${farmers[0].selfWinNum}回(${farmers[0].selfWinXCH}XCH)`;
-        document.getElementById("my_win1").textContent = `${farmers[1].selfWinNum}回(${farmers[1].selfWinXCH}XCH)`;
-        document.getElementById("my_win2").textContent = `${farmers[2].selfWinNum}回(${farmers[2].selfWinXCH}XCH)`;
-        document.getElementById("my_win3").textContent = `${farmers[3].selfWinNum}回(${farmers[3].selfWinXCH}XCH)`;
-        document.getElementById("my_win4").textContent = `${farmers[4].selfWinNum}回(${farmers[4].selfWinXCH}XCH)`;
+        document.getElementById("my_win0").textContent = `${farmers[0].selfWinNum}回(${farmers[0].selfWinXCH.toFixed(4)}XCH)`;
+        document.getElementById("my_win1").textContent = `${farmers[1].selfWinNum}回(${farmers[1].selfWinXCH.toFixed(4)}XCH)`;
+        document.getElementById("my_win2").textContent = `${farmers[2].selfWinNum}回(${farmers[2].selfWinXCH.toFixed(4)}XCH)`;
+        document.getElementById("my_win3").textContent = `${farmers[3].selfWinNum}回(${farmers[3].selfWinXCH.toFixed(4)}XCH)`;
+        document.getElementById("my_win4").textContent = `${farmers[4].selfWinNum}回(${farmers[4].selfWinXCH.toFixed(4)}XCH)`;
 
-        document.getElementById("main_win0").textContent = `${farmers[0].mainWinNum}回(${farmers[0].mainWinXCH}XCH)`;
-        document.getElementById("main_win1").textContent = `${farmers[1].mainWinNum}回(${farmers[1].mainWinXCH}XCH)`;
-        document.getElementById("main_win2").textContent = `${farmers[2].mainWinNum}回(${farmers[2].mainWinXCH}XCH)`;
-        document.getElementById("main_win3").textContent = `${farmers[3].mainWinNum}回(${farmers[3].mainWinXCH}XCH)`;
-        document.getElementById("main_win4").textContent = `${farmers[4].mainWinNum}回(${farmers[4].mainWinXCH}XCH)`;
+        document.getElementById("main_win0").textContent = `${farmers[0].mainWinNum}回(${farmers[0].mainWinXCH.toFixed(4)}XCH)`;
+        document.getElementById("main_win1").textContent = `${farmers[1].mainWinNum}回(${farmers[1].mainWinXCH.toFixed(4)}XCH)`;
+        document.getElementById("main_win2").textContent = `${farmers[2].mainWinNum}回(${farmers[2].mainWinXCH.toFixed(4)}XCH)`;
+        document.getElementById("main_win3").textContent = `${farmers[3].mainWinNum}回(${farmers[3].mainWinXCH.toFixed(4)}XCH)`;
+        document.getElementById("main_win4").textContent = `${farmers[4].mainWinNum}回(${farmers[4].mainWinXCH.toFixed(4)}XCH)`;
 
-        document.getElementById("sub_win0").textContent = `${farmers[0].subWinNum}回(${farmers[0].subWinXCH}XCH)`;
-        document.getElementById("sub_win1").textContent = `${farmers[1].subWinNum}回(${farmers[1].subWinXCH}XCH)`;
-        document.getElementById("sub_win2").textContent = `${farmers[2].subWinNum}回(${farmers[2].subWinXCH}XCH)`;
-        document.getElementById("sub_win3").textContent = `${farmers[3].subWinNum}回(${farmers[3].subWinXCH}XCH)`;
-        document.getElementById("sub_win4").textContent = `${farmers[4].subWinNum}回(${farmers[4].subWinXCH}XCH)`;
+        document.getElementById("sub_win0").textContent = `${farmers[0].subWinNum}回(${farmers[0].subWinXCH.toFixed(4)}XCH)`;
+        document.getElementById("sub_win1").textContent = `${farmers[1].subWinNum}回(${farmers[1].subWinXCH.toFixed(4)}XCH)`;
+        document.getElementById("sub_win2").textContent = `${farmers[2].subWinNum}回(${farmers[2].subWinXCH.toFixed(4)}XCH)`;
+        document.getElementById("sub_win3").textContent = `${farmers[3].subWinNum}回(${farmers[3].subWinXCH.toFixed(4)}XCH)`;
+        document.getElementById("sub_win4").textContent = `${farmers[4].subWinNum}回(${farmers[4].subWinXCH.toFixed(4)}XCH)`;
 
-        document.getElementById("total_win0").textContent = `${farmers[0].selfWinXCH + farmers[0].mainWinXCH + farmers[0].subWinXCH}XCH`;
-        document.getElementById("total_win1").textContent = `${farmers[1].selfWinXCH + farmers[1].mainWinXCH + farmers[1].subWinXCH}XCH`;
-        document.getElementById("total_win2").textContent = `${farmers[2].selfWinXCH + farmers[2].mainWinXCH + farmers[2].subWinXCH}XCH`;
-        document.getElementById("total_win3").textContent = `${farmers[3].selfWinXCH + farmers[3].mainWinXCH + farmers[3].subWinXCH}XCH`;
-        document.getElementById("total_win4").textContent = `${farmers[4].selfWinXCH + farmers[4].mainWinXCH + farmers[4].subWinXCH}XCH`;
+        document.getElementById("total_win0").textContent = `${(farmers[0].selfWinXCH + farmers[0].mainWinXCH + farmers[0].subWinXCH).toFixed(4)}XCH`;
+        document.getElementById("total_win1").textContent = `${(farmers[1].selfWinXCH + farmers[1].mainWinXCH + farmers[1].subWinXCH).toFixed(4)}XCH`;
+        document.getElementById("total_win2").textContent = `${(farmers[2].selfWinXCH + farmers[2].mainWinXCH + farmers[2].subWinXCH).toFixed(4)}XCH`;
+        document.getElementById("total_win3").textContent = `${(farmers[3].selfWinXCH + farmers[3].mainWinXCH + farmers[3].subWinXCH).toFixed(4)}XCH`;
+        document.getElementById("total_win4").textContent = `${(farmers[4].selfWinXCH + farmers[4].mainWinXCH + farmers[4].subWinXCH).toFixed(4)}XCH`;
     }
 
     // lotterySpanに1回の抽選
