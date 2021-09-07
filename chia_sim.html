@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <h2>chiaプール移動は得なのかシミュレータ</h2>
+    <div>・この世界線では10秒に1回抽選が行われる。(8640抽選/day)</div>
+    <div>・10000plots持っていれば平均1日1回当たる。(1plotsあたりの当選確率1/86400000)</div>
+    <div>・メインpoolで見込み当選期間のn倍当選しなかったらサブpoolへ移動する</div>
+    <div>・サブ移行後メインpoolが当選したら、サブpoolからメインpoolへ移動する</div>
+    <div>・pool移行中に自力当選したときの挙動がわからんので、移動中は0.25XCHをゲットしつつ、どのpoolにも所属していない扱い</div>
+    <div>
+        <table>
+            <tr>
+                <th>あなたの設定</th>
+                <th>メインpool</th>
+                <th>サブpool</th>
+            </tr>
+            <tr>
+                <td>
+                    <div>plot数<input name="my_plots" value="1000" size="8" onchange="calcExpectations('my_plots','my_win_span');"></input></div>
+                </td>
+                <td>
+                    <div>plot数<input name="main_plots" value="10000" size="8" onchange="calcExpectations('main_plots','main_win_span');"></input></div>
+                </td>
+                <td>
+                    <div>plot数<input name="sub_plots" value="1000000" size="8" onchange="calcExpectations('sub_plots','sub_win_span');"></input></div>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <div>見込み当選期間<div id="my_win_span"></div>
+                    </div>
+                </td>
+                <td>
+                    <div>見込み当選期間<div id="main_win_span"></div>
+                    </div>
+                </td>
+                <td>
+                    <div>見込み当選期間<div id="sub_win_span"></div>
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <div>見込みの<input name="move_ratio" value="1.0" size="6">倍ハマりでpool移動する</div>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <div>pool移動にかかる時間(片道)<input name="move_cost" value="1800" size="6">秒</div>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <div>poolポイント加算間隔<input name="pool_point_span" value="10" size="6">秒</div>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <div>試行期間<input name="simu_days" value="365" size="6">日</div>
+                </td>
+            </tr>
+
+        </table>
+    </div>
+    <div>
+        <button id="calc_button" onClick="clickCalcButton()">シミュレートする</button>
+    </div>
+
+    <table>
+        <tr>
+            <th></th>
+            <th>ずっとソロ</th>
+            <th>ずっとメインpool</th>
+            <th>ずっとサブpool</th>
+            <th>メインとサブ往復(移動時間なし)</th>
+            <th>メインとサブ往復(移動時間あり)</th>
+        </tr>
+        <tr>
+            <th>自力当選数</th>
+            <td>
+                <div id="my_win0"></div>
+            </td>
+            <td>
+                <div id="my_win1"></div>
+            </td>
+            <td>
+                <div id="my_win2"></div>
+            </td>
+            <td>
+                <div id="my_win3"></div>
+            </td>
+            <td>
+                <div id="my_win4"></div>
+            </td>
+        </tr>
+        <tr>
+            <th>メインpool当選数</th>
+            <td>
+                <div id="main_win0"></div>
+            </td>
+            <td>
+                <div id="main_win1"></div>
+            </td>
+            <td>
+                <div id="main_win2"></div>
+            </td>
+            <td>
+                <div id="main_win3"></div>
+            </td>
+            <td>
+                <div id="main_win4"></div>
+            </td>
+        </tr>
+        <tr>
+            <th>サブpool当選数</th>
+            <td>
+                <div id="sub_win0"></div>
+            </td>
+            <td>
+                <div id="sub_win1"></div>
+            </td>
+            <td>
+                <div id="sub_win2"></div>
+            </td>
+            <td>
+                <div id="sub_win3"></div>
+            </td>
+            <td>
+                <div id="sub_win4"></div>
+            </td>
+        </tr>
+        <tr>
+            <th>合計</th>
+            <td>
+                <div id="total_win0"></div>
+            </td>
+            <td>
+                <div id="total_win1"></div>
+            </td>
+            <td>
+                <div id="total_win2"></div>
+            </td>
+            <td>
+                <div id="total_win3"></div>
+            </td>
+            <td>
+                <div id="total_win4"></div>
+            </td>
+        </tr>
+    </table>
+</body>
+<style>
+    table,
+    td,
+    th {
+        border: 1px;
+        border-style: solid;
+        border-collapse: collapse;
+    }
+
+    table {
+        margin-top: 30px;
+    }
+
+    #calc_button {
+        width: 300px;
+        margin: 30px;
+    }
+</style>
+<script>
+    const winRatio = 86400000;// 1プロットあたりの当選確率
+    const gateRatio = 40960;// 全plots分抽選すると終わらなかったのでサボる
+    const lotterySpan = 10; //10秒間隔で抽選
+    // 見込み時間の計算
+    function calcExpectations(sourceName, distId) {
+
+        const sourcdTag = document.getElementsByName(sourceName)[0];
+        if (Number(sourcdTag.value) == 0) {
+            sourcdTag.value = "1"
+        }
+        const plotsNum = Number(sourcdTag.value)
+        const secondSpan = Math.floor(winRatio / plotsNum * lotterySpan);
+        console.log(secondSpan)
+        const days = Math.floor(secondSpan / 24 / 3600);
+        const hours = Math.floor(secondSpan / 3600) % 24;
+        const minuts = Math.floor(secondSpan / 60) % 60;
+        const seconds = secondSpan % 60;
+        const message = `${days}日${hours}時間${minuts}分${seconds}秒`;
+
+        const distTag = document.getElementById(distId);
+        distTag.textContent = message
+    }
+
+    function clickCalcButton() {
+        console.log("clickCalcButton")
+        const time1 = new Date();
+        lotteryAll();
+        const time2 = new Date();
+        console.log((time2.getTime() - time1.getTime()) / 1000)
+    }
+
+    const farmerType = {
+        post: "solo", // 所属 "solo"=ソロ,"main"=メインプール,"sub"=サブプール,"main_move"=メインへ移動中,"sub_move"=サブへ移動中
+        selfWinNum: 0,// 自力当選数
+        selfWinXCH: 0,// 自力当選XCH数
+        mainWinNum: 0,// メインプール所属時当選数
+        mainWinXCH: 0,// メインプール所属時XCH数
+        subWinNum: 0,// サブプール所属時当選数
+        subWinXCH: 0,// サブプール所属時XCH数
+
+        mainPoolPoint: 0,
+        mainPoolPointTotal: 0,
+
+        subPoolPoint: 0,
+        subPoolPointTotal: 0,
+
+
+        moveFlg: 0,// プール間移動 0=しない,1=する
+        moveCost: 0,// プール間移動にかかる時間(秒)
+        moveCount: 0,// プール移動経過時間
+    };
+
+    let elapsedTime = 0;// 経過時間
+    let myPlots = 0; // 自分のプロット数
+    let mainPoolPlots = 0;//メインプールのプロット数
+    let moveRatio = 0;// ハマり倍率
+    let subPoolPlots = 0;
+    let simuDays = 0; // シミュレーション日数
+    let poolPointSpan = 0;// プールポイント加算間隔
+
+    // [0]=ずっとソロ,[1]=ずっとメインpool,[2]=ずっとサブpool,[3]=メインとサブ往復(移動時間なし),[4]=メインとサブ往復(移動時間あり)
+    let farmers = [{}, {}, {}, {}];
+
+    function init() {
+        elapsedTime = 0;
+        myPlots = Number(document.getElementsByName("my_plots")[0].value);
+        simuDays = Number(document.getElementsByName("simu_days")[0].value);
+        mainPoolPlots = Number(document.getElementsByName("main_plots")[0].value);
+        moveRatio = Number(document.getElementsByName("move_ratio")[0].value);
+        subPoolPlots = Number(document.getElementsByName("sub_plots")[0].value);
+        const moveCost = Number(document.getElementsByName("move_cost")[0].value);
+        poolPointSpan = Number(document.getElementsByName("pool_point_span")[0].value);
+        farmers = [
+            Object.assign({}, farmerType, { post: "solo" }),// [0]=ずっとソロ,
+            Object.assign({}, farmerType, { post: "main" }),// [1]=ずっとメインpool
+            Object.assign({}, farmerType, { post: "sub" }),// [2]=ずっとサブpool
+            Object.assign({}, farmerType, { post: "main", moveFlg: 1 }),//[3]=メインとサブ往復(移動時間なし),
+            Object.assign({}, farmerType, { post: "main", moveFlg: 1, moveCost: moveCost })// [4]=メインとサブ往復(移動時間あり)
+        ];
+    }
+
+    // 全期間抽選
+    function lotteryAll() {
+        init();
+
+        console.log(simuDays)
+        const lotterySpanSec = simuDays * 24 * 3600;
+        for (let i = 0; i < lotterySpanSec; i++) {
+            pass1sec();
+        }
+        whiteResult();
+        console.log("end")
+    }
+
+    function pass1sec() {
+        elapsedTime++;
+        // プール移動判定。
+        movePool();
+
+        // 規定秒数ごとにpoolポイントを加算
+        if (elapsedTime % poolPointSpan === 0) {
+            addPoolPoint();
+        }
+        // 規定秒数ごとに抽選する
+        if (elapsedTime % lotterySpan === 0) {
+            lottery();
+        }
+    }
+
+    function movePool() {
+
+
+
+        farmers.forEach(farmer => {
+            // メインにいて見込み時間をオーバーしているなら引っ越し
+            if (farmer.post === "main" && farmer.moveFlg === 1 && farmer.mainPoolPointTotal >= winRatio * moveRatio) {
+                farmer.post = "sub_move";
+            }
+            // サブにいてmainが当選したなら引っ越し
+            if (farmer.post === "sub" && farmer.moveFlg === 1 && farmer.mainPoolPointTotal === 0) {
+                farmer.post = "main_move";
+            }
+            // 引っ越し中で規定時間達していたならpoolに入る
+            if (farmer.post !== "main_move" && farmer.post !== "sub_move") {
+                return;
+            }
+            farmer.moveCount++;
+            if (farmer.moveCount >= farmer.moveCost) {
+                if (farmer.post === "main_move") {
+                    farmer.post = "main";
+                }
+                if (farmer.post === "sub_move") {
+                    farmer.post = "sub";
+                }
+                farmer.moveCount = 0;
+            }
+        });
+    }
+
+    function addPoolPoint() {
+        farmers.forEach(farmer => {
+            farmer.mainPoolPointTotal += mainPoolPlots;
+            farmer.subPoolPointTotal += subPoolPlots;
+
+            if (farmer.post == "main") {
+                farmer.mainPoolPoint += myPlots;
+                farmer.mainPoolPointTotal += myPlots;
+            }
+            if (farmer.post == "sub") {
+                farmer.subPoolPoint += myPlots;
+                farmer.subPoolPointTotal += myPlots;
+            }
+        });
+    }
+
+    // 1日分抽選
+    function lotteryDay() {
+        const lotteryParDay = Math.floor(24 * 3600 / lotterySpan);
+        for (let i = 0; i < lotteryParDay; i++) {
+            lottery();
+        }
+    }
+
+    function whiteResult() {
+        console.log(farmers)
+        document.getElementById("my_win0").textContent = `${farmers[0].selfWinNum}回(${farmers[0].selfWinXCH}XCH)`;
+        document.getElementById("my_win1").textContent = `${farmers[1].selfWinNum}回(${farmers[1].selfWinXCH}XCH)`;
+        document.getElementById("my_win2").textContent = `${farmers[2].selfWinNum}回(${farmers[2].selfWinXCH}XCH)`;
+        document.getElementById("my_win3").textContent = `${farmers[3].selfWinNum}回(${farmers[3].selfWinXCH}XCH)`;
+        document.getElementById("my_win4").textContent = `${farmers[4].selfWinNum}回(${farmers[4].selfWinXCH}XCH)`;
+
+        document.getElementById("main_win0").textContent = `${farmers[0].mainWinNum}回(${farmers[0].mainWinXCH}XCH)`;
+        document.getElementById("main_win1").textContent = `${farmers[1].mainWinNum}回(${farmers[1].mainWinXCH}XCH)`;
+        document.getElementById("main_win2").textContent = `${farmers[2].mainWinNum}回(${farmers[2].mainWinXCH}XCH)`;
+        document.getElementById("main_win3").textContent = `${farmers[3].mainWinNum}回(${farmers[3].mainWinXCH}XCH)`;
+        document.getElementById("main_win4").textContent = `${farmers[4].mainWinNum}回(${farmers[4].mainWinXCH}XCH)`;
+
+        document.getElementById("sub_win0").textContent = `${farmers[0].subWinNum}回(${farmers[0].subWinXCH}XCH)`;
+        document.getElementById("sub_win1").textContent = `${farmers[1].subWinNum}回(${farmers[1].subWinXCH}XCH)`;
+        document.getElementById("sub_win2").textContent = `${farmers[2].subWinNum}回(${farmers[2].subWinXCH}XCH)`;
+        document.getElementById("sub_win3").textContent = `${farmers[3].subWinNum}回(${farmers[3].subWinXCH}XCH)`;
+        document.getElementById("sub_win4").textContent = `${farmers[4].subWinNum}回(${farmers[4].subWinXCH}XCH)`;
+
+        document.getElementById("total_win0").textContent = `${farmers[0].selfWinXCH + farmers[0].mainWinXCH + farmers[0].subWinXCH}XCH`;
+        document.getElementById("total_win1").textContent = `${farmers[1].selfWinXCH + farmers[1].mainWinXCH + farmers[1].subWinXCH}XCH`;
+        document.getElementById("total_win2").textContent = `${farmers[2].selfWinXCH + farmers[2].mainWinXCH + farmers[2].subWinXCH}XCH`;
+        document.getElementById("total_win3").textContent = `${farmers[3].selfWinXCH + farmers[3].mainWinXCH + farmers[3].subWinXCH}XCH`;
+        document.getElementById("total_win4").textContent = `${farmers[4].selfWinXCH + farmers[4].mainWinXCH + farmers[4].subWinXCH}XCH`;
+    }
+
+    // lotterySpanに1回の抽選
+    function lottery() {
+        // 自分のプロットの抽選
+        let winSelfNum = 0;
+        const myPlotsLotteryNum = calcLotteryNum(myPlots);
+        for (let i = 0; i < myPlotsLotteryNum; i++) {
+            // 値を切り捨てて0が出たら当選
+            const lotteryNumber = Math.random() * winRatio / gateRatio;
+            if (lotteryNumber < 1) {
+                winSelfNum++;
+            }
+        }
+        // メインプールプロットの抽選
+        let winMainNum = 0;
+        const mainPoolPlotsLotteryNum = calcLotteryNum(mainPoolPlots);
+        for (let i = 0; i < mainPoolPlotsLotteryNum; i++) {
+            // 値を切り捨てて0が出たら当選
+            const lotteryNumber = Math.random() * winRatio / gateRatio;
+            if (lotteryNumber < 1) {
+                winMainNum++;
+            }
+        }
+
+        // サブプールプロットの抽選
+        let winSubNum = 0;
+        const subPoolPlotsLotteryNum = calcLotteryNum(subPoolPlots);
+        for (let i = 0; i < subPoolPlotsLotteryNum; i++) {
+            // 値を切り捨てて0が出たら当選
+            const lotteryNumber = Math.random() * winRatio / gateRatio;
+            if (lotteryNumber < 1) {
+                winSubNum++;
+            }
+        }
+
+        farmers.forEach(farmer => {
+            // 自分のpostによって当選数を補正
+            let winSelfNum_c = winSelfNum;
+            let winMainNum_c = winMainNum;
+            let winSubNum_c = winSubNum;
+
+            if (farmer.post === "main") {
+                winMainNum_c = winSelfNum + winMainNum;
+            }
+            else if (farmer.post === "sub") {
+                winSubNum_c = winSelfNum + winSubNum;
+            }
+
+            winSelf(farmer, winSelfNum_c);
+            winMain(farmer, winMainNum_c);
+            winSub(farmer, winSubNum_c);
+        });
+
+    }
+
+    function calcLotteryNum(plotsNum) {
+        let lotteryNum = Math.floor(plotsNum / gateRatio);
+        if (Math.random() * gateRatio < (plotsNum % gateRatio)) {// 端数分の計算
+            lotteryNum++;
+        }
+        return lotteryNum;
+    }
+
+    // 当選したときの処理
+    function winSelf(farmer, winnum) {// 引数は当選数
+        if (winnum === 0) return;
+        if (farmer.post === "solo") {
+            farmer.selfWinNum += winnum;
+            farmer.selfWinXCH += winnum * 2;
+        }
+        else {
+            farmer.selfWinNum += winnum;
+            farmer.selfWinXCH += winnum * 0.25;
+        }
+    }
+    // メインプールが当選
+    function winMain(farmer, winnum) { // 引数は当選数
+        if (winnum === 0) return;
+        if (farmer.mainPoolPoint) {// 自分のポイントがあるときだけ当選回数を加算する
+            farmer.mainWinNum += winnum;
+        }
+        const xch = farmer.mainPoolPointTotal ? 1.75 * farmer.mainPoolPoint / farmer.mainPoolPointTotal : 0;
+        farmer.mainWinXCH += xch;
+        farmer.mainPoolPoint = 0;
+        farmer.mainPoolPointTotal = 0;
+    }
+
+    // サブプールが当選
+    function winSub(farmer, winnum) { // 引数は当選数
+        if (winnum === 0) return;
+        if (farmer.subPoolPoint) {// 自分のポイントがあるときだけ当選回数を加算する
+            farmer.subWinNum += winnum;
+        }
+        const xch = farmer.subPoolPointTotal ? 1.75 * farmer.subPoolPoint / farmer.subPoolPointTotal : 0;
+        farmer.subWinXCH += xch;
+        farmer.subPoolPoint = 0;
+        farmer.subPoolPointTotal = 0;
+    }
+
+    calcExpectations('my_plots', 'my_win_span');
+    calcExpectations('main_plots', 'main_win_span');
+    calcExpectations('sub_plots', 'sub_win_span');
+</script>
+
+</html>
